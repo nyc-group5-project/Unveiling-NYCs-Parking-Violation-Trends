@@ -1,0 +1,14 @@
+Resources:
+
+    MyS3Bucket:
+        Type: AWS::S3::Bucket
+        DeletionPolicy: Delete
+        Properties:
+            BucketName: group05datalake
+
+    MyS3Bucket1:
+        Type: AWS::S3::Bucket
+        DeletionPolicy: Delete
+        Properties:
+            BucketName: group05output
+        

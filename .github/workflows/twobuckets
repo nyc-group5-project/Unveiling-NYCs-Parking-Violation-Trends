@@ -2,13 +2,13 @@ Resources:
 
     MyS3Bucket:
         Type: AWS::S3::Bucket
-        DeletionPolicy: Delete
+        DeletionPolicy: Retain
         Properties:
-            BucketName: group05datalake
+            BucketName: group05akashdatalake
 
     MyS3Bucket1:
         Type: AWS::S3::Bucket
-        DeletionPolicy: Delete
+        DeletionPolicy: Retain
         Properties:
-            BucketName: group05output
+            BucketName: group05akashoutput
         

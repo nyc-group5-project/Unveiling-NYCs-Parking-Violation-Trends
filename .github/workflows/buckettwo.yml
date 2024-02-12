@@ -4,11 +4,26 @@ Resources:
         Type: AWS::S3::Bucket
         DeletionPolicy: Delete
         Properties:
-            BucketName: group05akashdatalake
+            BucketName: group05akashdatalakenew
 
     MyS3Bucket1:
         Type: AWS::S3::Bucket
         DeletionPolicy: Delete
         Properties:
-            BucketName: group05akashoutput
-        
+            BucketName: group05akashoutputnew
+
+
+    GlueDatabase:
+        Type: AWS::Glue::Database
+        Properties:
+            CatalogId: !Ref AWS::AccountId
+            DatabaseInput:
+                Name: gitdatabase 
+                   
+
+    WorkflowJob:
+        Type: AWS::Glue::Workflow
+        Properties:
+            Description: Create workflow
+            MaxConcurrentRuns: 1
+            Name: jobworkflow  

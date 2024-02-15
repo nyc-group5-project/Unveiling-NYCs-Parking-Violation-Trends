@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Resources:
+  SourceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: group-5-datalake
+
+  DestinationBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: group-5-datawarehouse
+
+  IngestionGlueJob:
+    Type: AWS::Glue::Job
+    DependsOn:
+      - SourceBucket
+      - DestinationBucket
+    Properties:
+      Name: crime-ingestion
+      Role: arn:aws:iam::314119374691:role/LabRole
+      GlueVersion: 4.0
+      NumberOfWorkers: 5
+      Timeout: 30
+      WorkerType: G.1X
+      Command:
+        Name: glueetl
+        ScriptLocation: s3://grp-5-py-scripts/ingesion_script.py
+      DefaultArguments:
+        "--job-language": "python"
+      ExecutionProperty:
+        MaxConcurrentRuns: 1
+
+  TransformationGlueJob:
+    Type: AWS::Glue::Job
+    DependsOn:
+      - SourceBucket
+      - DestinationBucket
+      - IngestionGlueJob
+    Properties:
+      Name: crime-transformation
+      Role: arn:aws:iam::314119374691:role/LabRole
+      GlueVersion: 4.0
+      NumberOfWorkers: 5
+      Timeout: 30
+      WorkerType: G.1X
+      Command:
+        Name: glueetl
+        ScriptLocation: s3://grp-5-py-scripts/transform.py
+      DefaultArguments:
+        "--job-language": "python"
+      ExecutionProperty:
+        MaxConcurrentRuns: 1
+
+  GlueWorkflow:
+    Type: AWS::Glue::Workflow
+    DependsOn:
+      - SourceBucket
+      - DestinationBucket
+      - TransformationGlueJob
+    Properties:
+      Description: ETL Job
+      MaxConcurrentRuns: 1
+      Name: nyc-workflow
+
+  GlueTriggerImport:
+    Type: AWS::Glue::Trigger
+    DependsOn:
+      - GlueWorkflow
+      - IngestionGlueJob
+    Properties:
+      Actions:
+        - JobName: !Ref IngestionGlueJob
+      Description: Triggers the Import Jobs
+      Name: gluetriggerimport
+      Type: ON_DEMAND
+      WorkflowName: nyc-workflow
+
+  GlueTriggerTransform:
+    Type: AWS::Glue::Trigger
+    DependsOn:
+      - GlueWorkflow
+      - TransformationGlueJob
+      - GlueTriggerImport
+    Properties:
+      Actions:
+        - JobName: !Ref TransformationGlueJob
+      Description: Triggers the transformation job
+      Name: gluetriggertransform
+      Predicate:
+        Conditions:
+          - JobName: !Ref IngestionGlueJob
+            LogicalOperator: EQUALS
+            State: SUCCEEDED
+        Logical: AND
+      Type: CONDITIONAL
+      StartOnCreation: True
+      WorkflowName: nyc-workflow
+
+  DataCrawler:
+    Type: AWS::Glue::Crawler
+    DependsOn:
+      - SourceBucket
+      - DestinationBucket
+      - GlueWorkflow
+      - GlueTriggerTransform
+    Properties:
+      Name: data-crawler
+      DatabaseName: default # Replace with your desired Glue database name
+      Targets:
+        S3Targets:
+          - Path: s3://akashbigdata01/data/ # Specify the path of the bucket you want to crawl
+      Role: arn:aws:iam::314119374691:role/LabRole

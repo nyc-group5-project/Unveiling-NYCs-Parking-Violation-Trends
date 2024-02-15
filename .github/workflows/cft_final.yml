@@ -103,7 +103,7 @@ Resources:
       - GlueWorkflow
       - GlueTriggerTransform
     Properties:
-      Name: data-crawler
+      Name: data-crawler5
       DatabaseName: gitdatabase # Replace with your desired Glue database name
       Targets:
         S3Targets:

@@ -1,0 +1,23 @@
+Resources:
+  MyS3Bucket:
+      Type: AWS::S3::Bucket
+      DeletionPolicy: Delete
+      Properties:
+          BucketName: group05datalake
+
+  GlueJobImport:
+      Type: AWS::Glue::Job
+      DependsOn: MyS3Bucket
+      Properties:
+          Name: data-ingestion
+          Description: Ingests data from s3 and writes it as a parquet file to the data lake
+          ExecutionClass: FLEX
+          GlueVersion: 4.0
+          MaxRetries: 0
+          NumberOfWorkers: 6
+          Role: arn:aws:iam::314119374691:role/LabRole
+          Timeout: 40
+          WorkerType: G.1X
+          Command:
+              Name: glueetl
+              ScriptLocation: s3://akash-2/script.py 

@@ -21,18 +21,18 @@ df1 = spark.read \
     .option("user", "admin") \
     .option("password", "qwertyuiop") \
     .load()
-# df2 = spark.read \
-#     .format("jdbc") \
-#     .option("url", "jdbc:mysql://year2022-2023.c6lgb9aybcpq.us-east-1.rds.amazonaws.com:3306/group52") \
-#     .option("dbtable", "parking_violations05") \
-#     .option("user", "admin") \
-#     .option("password", "qwertyuiop") \
-#     .load()
+df2 = spark.read \
+    .format("jdbc") \
+    .option("url", "jdbc:mysql://year2022-2023.c6lgb9aybcpq.us-east-1.rds.amazonaws.com:3306/group52") \
+    .option("dbtable", "parking_violations05") \
+    .option("user", "admin") \
+    .option("password", "qwertyuiop") \
+    .load()
 
-# df3 = spark.read.csv("s3://nycparkingtickets/year20212223/",header=True)
-# df4 = df1.union(df2)
-# df5 = df4.union(df3)
+df3 = spark.read.csv("s3://nycparkingtickets/year20212223/",header=True)
+df4 = df1.union(df2)
+df5 = df4.union(df3)
 print("Dataframe is loaded")
-df1.coalesce(1).write.parquet("s3://nycgroup05datalake/fiveyearsnycdata")
+df5.coalesce(1).write.parquet("s3://nycgroup05datalake/fiveyearsnycdata")
 
 job.commit()

@@ -1,4 +1,4 @@
-name: AWS Resource Creation 
+name: combine
 
 on:
   push:
@@ -7,24 +7,21 @@ on:
   workflow_dispatch:
 
 jobs:
-  Deploy_CFT:
+  deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v2
 
-      - name: Deploy CloudFormation stack
+      - name: Deploy CloudFormation Stack
         run: |
           aws cloudformation deploy \
-            --stack-name CFTStack \
+            --stack-name my-stack-name \
             --template-file .github/workflows/cft_final.yml \
-            --capabilities CAPABILITY_IAM
+            --capabilities CAPABILITY_NAMED_IAM
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: us-east-1
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-
-
-
-          

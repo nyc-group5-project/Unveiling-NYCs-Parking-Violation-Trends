@@ -87,7 +87,7 @@ Resources:
             State: SUCCEEDED
         Logical: AND
       Type: CONDITIONAL
-      WorkflowName: NYC-workflow
+      WorkflowName: nyc-workflow
 
 
   GlueDatabase:

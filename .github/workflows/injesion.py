@@ -8,11 +8,11 @@ from awsglue.job import Job
 ## @params: [JOB_NAME]
 args = getResolvedOptions(sys.argv, ['JOB_NAME'])
 
-sc = SparkContext()
-glueContext = GlueContext(sc)
-spark = glueContext.spark_session
-job = Job(glueContext)
-job.init(args['JOB_NAME'], args)
+sc = SparkContext() # SparkContext is the entry point to any Spark functionality.
+glueContext = GlueContext(sc) # GlueContext is a class provided by AWS Glue that extends the functionality of SparkContext.
+spark = glueContext.spark_session # SparkSession is the entry point to Spark SQL functionality and the DataFrame API.
+job = Job(glueContext)   # Job is a class provided by AWS Glue for defining and running ETL (Extract, Transform, Load) jobs.
+job.init(args['JOB_NAME'], args) # The init method is used to initialize the job
 
 df1 = spark.read \
     .format("jdbc") \

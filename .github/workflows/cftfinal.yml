@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
-Resources:
+Resources: 
   SourceBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -109,6 +109,8 @@ Resources:
         S3Targets:
           - Path: s3://nycgroup05datawarehouse # Specify the path of the bucket you want to crawl
       Role: arn:aws:iam::314119374691:role/LabRole
+
+  
 
 
       

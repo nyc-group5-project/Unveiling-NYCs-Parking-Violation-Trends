@@ -65,6 +65,7 @@ Resources:
       Description: Triggers the Import Jobs
       Name: gluetriggerimport
       Type: EVENT
+      StartOnCreation: True
       WorkflowName: nyc-workflow
 
   GlueTriggerTransform:
@@ -87,7 +88,6 @@ Resources:
             State: SUCCEEDED
         Logical: AND
       Type: CONDITIONAL
-      StartOnCreation: True
       WorkflowName: NYC-workflow
 
 
@@ -113,3 +113,6 @@ Resources:
         S3Targets:
           - Path: s3://nycgroup05datawarehouse # Specify the path of the bucket you want to crawl
       Role: arn:aws:iam::314119374691:role/LabRole
+
+
+      

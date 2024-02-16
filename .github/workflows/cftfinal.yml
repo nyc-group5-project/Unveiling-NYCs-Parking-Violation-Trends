@@ -65,7 +65,6 @@ Resources:
       Description: Triggers the Import Jobs
       Name: gluetriggerimport
       Type: EVENT
-      StartOnCreation: True
       WorkflowName: nyc-workflow
 
   GlueTriggerTransform:

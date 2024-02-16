@@ -55,8 +55,6 @@ Resources:
   GlueTriggerImport:
     Type: AWS::Glue::Trigger
     DependsOn:
-      - SourceBucket
-      - DestinationBucket
       - GlueWorkflow
       - IngestionGlueJob
     Properties:
@@ -70,8 +68,6 @@ Resources:
   GlueTriggerTransform:
     Type: AWS::Glue::Trigger
     DependsOn:
-      - SourceBucket
-      - DestinationBucket
       - GlueWorkflow
       - TransformationGlueJob
       - GlueTriggerImport

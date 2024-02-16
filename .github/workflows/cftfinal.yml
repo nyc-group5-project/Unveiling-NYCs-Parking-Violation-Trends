@@ -83,6 +83,7 @@ Resources:
             State: SUCCEEDED
         Logical: AND
       Type: CONDITIONAL
+      StartOnCreation: True
       WorkflowName: nyc-workflow
 
 

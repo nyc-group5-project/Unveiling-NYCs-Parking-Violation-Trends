@@ -8,7 +8,7 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 # Reading merged parquet file	
-df = spark.read.parquet("s3://nycparkingtickets/final_nyc/", header=True)
+df=spark.read.parquet("s3://nycgroup05datalake/fiveyearsnycdata/",header=True)
 
 spark.conf.set("spark.sql.legacy.timeParserPolicy", "LEGACY")
 # Dropping unnecessary columns

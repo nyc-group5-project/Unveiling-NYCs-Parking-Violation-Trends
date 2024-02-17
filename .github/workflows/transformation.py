@@ -1,259 +1,246 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import to_date, expr,col,when,substring, concat, lit,regexp_replace,to_timestamp
-from pyspark.sql.types import LongType
-from pyspark.sql.functions import hour, minute, date_format
-# Create a SparkSession
-spark = SparkSession.builder \
-    .appName("test1") \
-    .getOrCreate()
+import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
 
-# Reading merged parquet file	
+## @params: [JOB_NAME]
+args = getResolvedOptions(sys.argv, ['JOB_NAME'])
+
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args['JOB_NAME'], args)
+
+
 df=spark.read.parquet("s3://nycgroup05datalake/fiveyearsnycdata/",header=True)
 
-spark.conf.set("spark.sql.legacy.timeParserPolicy", "LEGACY")
-# Dropping unnecessary columns
-drop_column=['Street Code1','Street Code2','Street Code3','Vehicle Expiration Date','Violation Location','issuer precinct',
-             'issuer code','issuer command','issuer squad','time first observed','House Number','intersecting street','date first observed','violation legal code','unregistered vehicle?','vehicle year','meter number','violation post code','violation description','No Standing or Stopping Violation','hydrant violation','double parking violation','From Hours In Effect','To Hours In Effect','Days Parking In Effect']
-df=df.drop(*drop_column)
+df.printSchema()
+df1=df
 
-# Convert Issue Date datatype from string to date type
-df = df.withColumn('Issue Date', to_date(expr("substr(`Issue Date`, 1, 10)"), 'MM/dd/yyyy'))
+drop_column=['Street Code1','Street Code2','Street Code3','Violation Location','issuer precinct','issuer code','issuer command','issuer squad',
+'time first observed','intersecting street','date first observed','violation legal code','unregistered vehicle?','vehicle year','meter number',
+'violation post code','violation description','hydrant violation','double parking violation','Vehicle Expiration Date','No Standing or Stopping Violation']
 
-# Filter data for the required date range
-df = df.filter((col('Issue Date') >= '2018-07-01') & (col('Issue Date') <= '2023-06-30'))
+df1=df1.drop(*drop_column)
 
-# Clean 'law section' column
-df = df.withColumn('Law Section', regexp_replace(col('Law Section'), ',', ''))
+from pyspark.sql.functions import to_date, expr
 
-# Cast necessary columns to appropriate types
-df = df \
+df1 = df1.withColumn('Issue Date', to_date(expr("substr(`Issue Date`, 1, 10)"), 'MM/dd/yyyy'))
+
+from pyspark.sql.functions import col
+
+df1 = df1.filter((col('Issue Date') >= '2018-07-01') & (col('Issue Date') <= '2023-06-30'))
+
+from pyspark.sql.types import LongType
+
+df1 = df1 \
     .withColumn("Summons Number", col("Summons Number").cast(LongType())) \
-    .withColumn("Violation Code", col("Violation Code").cast('int')) \
-	.withColumn('violation precinct',col('violation precinct').cast('int')) \
-	.withColumn('feet from curb',col('feet from curb').cast('int'))
-	
-# Filter out rows with null 'Law Section'   
-df=df.filter(~col('Law Section').isNull())
+    .withColumn("Violation Code", col("Violation Code").cast(LongType())) \
+	.withColumn("Law Section", col("Law Section").cast(LongType()))
+df3=df1
 
-# Filter out rows with specified values in 'Violation County'
-values_to_drop = ['F', 'A', 'MS','P','K   F',108,'ABX'] 
-df = df.filter(~col('Violation County').isin(values_to_drop))
+df3.filter(col('Violation County').isNull()).count()
 
-# Drop rows with null values in specified columns having null values less than 5%
-df =df.filter(~col('sub division').isNull())
-df =df.filter(~col('plate id').isNull())
-df =df.filter(~col('street name').isNull())
+values_to_drop = ['F', 'A', 'MS','P','K   F',108,'ABX']
 
-# Replace null values in 'vehicle make' with 'Not Mentioned'
-df=df.withColumn('vehicle make',when(col('vehicle make').isNull(),'Not Mentioned').otherwise(col('vehicle make')))
+df3 = df3.filter(~col('Violation County').isin(values_to_drop))
 
-# Replace 0 values in 'Violation Code' with 99
-df =df.withColumn('Violation Code', when(col('violation code') == 0, 99).otherwise(col('Violation Code')))
+from pyspark.sql.functions import when
 
-df =df.withColumn('Vehicle Body Type', when(col('Vehicle Body Type').isNull(),'Others').otherwise(col('Vehicle Body Type')))
-
-
-# Charting abbreviations against their whole forms for 'Violation County'
-df = df.withColumn('Violation County',
-                     when(df['Violation County'] == 'NY', 'Manhattan')
-                     .when(df['Violation County'] == 'MN', 'Manhattan')
-                     .when(df['Violation County'] == 'Q', 'Queens')
-                     .when(df['Violation County'] == 'QN', 'Queens')
-                     .when(df['Violation County'] == 'K', 'Brooklyn')
-                     .when(df['Violation County'] == 'BK', 'Brooklyn')
-                     .when(df['Violation County'] == 'ST', 'Richmond')
-                     .when(df['Violation County'] == 'R', 'Richmond')
-                     .when(df['Violation County'] == 'BX', 'Bronx')
-                     .when(df['Violation County'] == 'QNS', 'Queens')
-                     .when(df['Violation County'] == 'Qns', 'Queens')
-                     .when(df['Violation County'] == 'QUEEN', 'Queens')
-                     .when(df['Violation County'] == 'Rich', 'Richmond')
-                     .when(df['Violation County'] == 'RICH', 'Richmond')
-                     .when(df['Violation County'] == 'KINGS', 'Brooklyn')
-                     .when(df['Violation County'] == 'Kings', 'Brooklyn')
-                     .when(df['Violation County'] == 'BRONX', 'Bronx')
-                     .when(df['Violation County'] == 'RICHM', 'Richmond')    
-                     .otherwise(df['Violation County'])
+df3 = df3.withColumn('Violation County',
+                     when(df3['Violation County'] == 'NY', 'Manhattan')
+                     .when(df3['Violation County'] == 'MN', 'Manhattan')
+                     .when(df3['Violation County'] == 'Q', 'Queens')
+                     .when(df3['Violation County'] == 'QN', 'Queens')
+                     .when(df3['Violation County'] == 'K', 'Brooklyn')
+                     .when(df3['Violation County'] == 'BK', 'Brooklyn')
+                     .when(df3['Violation County'] == 'ST', 'Richmond')
+                     .when(df3['Violation County'] == 'R', 'Richmond')
+                     .when(df3['Violation County'] == 'BX', 'Bronx')
+                     .when(df3['Violation County'] == 'QNS', 'Queens')
+                     .when(df3['Violation County'] == 'Qns', 'Queens')
+                     .when(df3['Violation County'] == 'QUEEN', 'Queens')
+                     .when(df3['Violation County'] == 'Rich', 'Richmond')
+                     .when(df3['Violation County'] == 'RICH', 'Richmond')
+                     .when(df3['Violation County'] == 'KINGS', 'Brooklyn')
+                     .when(df3['Violation County'] == 'Kings', 'Brooklyn')
+                     .when(df3['Violation County'] == 'BRONX', 'Bronx')
+                     .when(df3['Violation County'] == 'RICHM', 'Richmond')    
+                     .otherwise(df3['Violation County'])
                      )
-			
-# Charting abbreviations against their whole forms for 'Registration State'       
-df = df.withColumn('Registration State',
-                     when(df['Registration State'] == 'MN', 'Minnesota')
-                     .when(df['Registration State'] == 'MX', 'Mexico')
-                     .when(df['Registration State'] == 'DC', 'District of Columbia')
-                     .when(df['Registration State'] == 'GV', 'Guanajuato (Mexico)')
-                     .when(df['Registration State'] == 'QB', 'Queretaro (Mexico)')
-                     .when(df['Registration State'] == 'MD', 'Maryland')
-                     .when(df['Registration State'] == 'DE', 'Delaware')
-                     .when(df['Registration State'] == 'MO', 'Missouri')
-                     .when(df['Registration State'] == 'IL', 'Illinois')
-                     .when(df['Registration State'] == 'MS', 'Mississippi')
-                     .when(df['Registration State'] == 'SD', 'South Dakota')
-                     .when(df['Registration State'] == 'ON', 'Ontario (Canada)')
-                     .when(df['Registration State'] == 'AK', 'Alaska')
-                     .when(df['Registration State'] == 'UT', 'Utah')
-                     .when(df['Registration State'] == 'HI', 'Hawaii')
-                     .when(df['Registration State'] == 'NS', 'Nova Scotia (Canada)')
-                     .when(df['Registration State'] == 'CA', 'California')
-                     .when(df['Registration State'] == 'CT', 'Connecticut')
-                     .when(df['Registration State'] == 'NC', 'North Carolina')
-                     .when(df['Registration State'] == 'ME', 'Maine')
-                     .when(df['Registration State'] == 'NM', 'New Mexico')
-                     .when(df['Registration State'] == 'IA', 'Iowa')
-                     .when(df['Registration State'] == 'AR', 'Arkansas')
-                     .when(df['Registration State'] == 'AZ', 'Arizona')
-                     .when(df['Registration State'] == 'LA', 'Louisiana')
-                     .when(df['Registration State'] == 'NJ', 'New Jersey')
-                     .when(df['Registration State'] == 'NT', 'Northwest Territories (Canada)')
-                     .when(df['Registration State'] == 'WI', 'Wisconsin')
-                     .when(df['Registration State'] == 'MT', 'Montana')
-                     .when(df['Registration State'] == 'MB', 'Manitoba (Canada)')
-                     .when(df['Registration State'] == 'NY', 'New York')
-                     .when(df['Registration State'] == 'FL', 'Florida')
-                     .when(df['Registration State'] == 'PR', 'Puerto Rico')
-                     .when(df['Registration State'] == 'KY', 'Kentucky')
-                     .when(df['Registration State'] == 'WY', 'Wyoming')
-                     .when(df['Registration State'] == 'BC', 'British Columbia (Canada)')
-                     .when(df['Registration State'] == 'MI', 'Michigan')
-                     .when(df['Registration State'] == 'NV', 'Nevada')
-                     .when(df['Registration State'] == 'ID', 'Idaho')
-                     .when(df['Registration State'] == 'VT', 'Vermont')
-                     .when(df['Registration State'] == 'WA', 'Washington')
-                     .when(df['Registration State'] == 'ND', 'North Dakota')
-                     .when(df['Registration State'] == 'AL', 'Alabama')
-                     .when(df['Registration State'] == 'IN', 'Indiana')
-                     .when(df['Registration State'] == 'TN', 'Tennessee')
-                     .when(df['Registration State'] == 'TX', 'Texas')
-                     .when(df['Registration State'] == 'GA', 'Georgia')
-                     .when(df['Registration State'] == 'CO', 'Colorado')
-                     .when(df['Registration State'] == 'OK', 'Oklahoma')
-                     .when(df['Registration State'] == 'SC', 'South Carolina')
-                     .when(df['Registration State'] == 'OR', 'Oregon')
-                     .when(df['Registration State'] == 'VA', 'Virginia')
-                     .when(df['Registration State'] == 'RI', 'Rhode Island')
-                     .when(df['Registration State'] == 'NH', 'New Hampshire')
-                     .when(df['Registration State'] == 'NE', 'Nebraska')
-                     .when(df['Registration State'] == 'OH', 'Ohio')
-                     .when(df['Registration State'] == 'PA', 'Pennsylvania')
-                     .when(df['Registration State'] == 'SK', 'Saskatchewan (Canada)')
-                     .when(df['Registration State'] == 'AB', 'Alberta (Canada)')
-                     .when(df['Registration State'] == 'PE', 'Prince Edward Island (Canada)')
-                     .when(df['Registration State'] == 'WV', 'West Virginia')
-                     .when(df['Registration State'] == 'MA', 'Massachusetts')
-                     .when(df['Registration State'] == 'KS', 'Kansas')
-                     .when(df['Registration State'] == 'NB', 'New Brunswick (Canada)')
-                     .when(df['Registration State'] == 'YT', 'Yukon Territory (Canada)')
-                     .when(df['Registration State'] == 'NF', 'Newfoundland (Canada)')
-					 .when(df['Registration State'] == 'DP', 'U.S. State Dept')
-					 .when(df['Registration State'] == 'FO', 'Foreign')
+					 
+
+df3 = df3.withColumn('Registration State',
+                     when(df3['Registration State'] == 'MN', 'Minnesota')
+                     .when(df3['Registration State'] == 'MX', 'Mexico')
+                     .when(df3['Registration State'] == 'DC', 'District of Columbia')
+                     .when(df3['Registration State'] == 'GV', 'Guanajuato (Mexico)')
+                     .when(df3['Registration State'] == 'QB', 'Queretaro (Mexico)')
+                     .when(df3['Registration State'] == 'MD', 'Maryland')
+                     .when(df3['Registration State'] == 'DE', 'Delaware')
+                     .when(df3['Registration State'] == 'MO', 'Missouri')
+                     .when(df3['Registration State'] == 'IL', 'Illinois')
+                     .when(df3['Registration State'] == 'MS', 'Mississippi')
+                     .when(df3['Registration State'] == 'SD', 'South Dakota')
+                     .when(df3['Registration State'] == 'ON', 'Ontario (Canada)')
+                     .when(df3['Registration State'] == 'AK', 'Alaska')
+                     .when(df3['Registration State'] == 'UT', 'Utah')
+                     .when(df3['Registration State'] == 'HI', 'Hawaii')
+                     .when(df3['Registration State'] == 'NS', 'Nova Scotia (Canada)')
+                     .when(df3['Registration State'] == 'CA', 'California')
+                     .when(df3['Registration State'] == 'CT', 'Connecticut')
+                     .when(df3['Registration State'] == 'NC', 'North Carolina')
+                     .when(df3['Registration State'] == 'ME', 'Maine')
+                     .when(df3['Registration State'] == 'NM', 'New Mexico')
+                     .when(df3['Registration State'] == 'IA', 'Iowa')
+                     .when(df3['Registration State'] == 'AR', 'Arkansas')
+                     .when(df3['Registration State'] == 'AZ', 'Arizona')
+                     .when(df3['Registration State'] == 'LA', 'Louisiana')
+                     .when(df3['Registration State'] == 'NJ', 'New Jersey')
+                     .when(df3['Registration State'] == 'NT', 'Northwest Territories (Canada)')
+                     .when(df3['Registration State'] == 'WI', 'Wisconsin')
+                     .when(df3['Registration State'] == 'MT', 'Montana')
+                     .when(df3['Registration State'] == 'MB', 'Manitoba (Canada)')
+                     .when(df3['Registration State'] == 'NY', 'New York')
+                     .when(df3['Registration State'] == 'FL', 'Florida')
+                     .when(df3['Registration State'] == 'PR', 'Puerto Rico')
+                     .when(df3['Registration State'] == 'KY', 'Kentucky')
+                     .when(df3['Registration State'] == 'WY', 'Wyoming')
+                     .when(df3['Registration State'] == 'BC', 'British Columbia (Canada)')
+                     .when(df3['Registration State'] == 'MI', 'Michigan')
+                     .when(df3['Registration State'] == 'NV', 'Nevada')
+                     .when(df3['Registration State'] == 'ID', 'Idaho')
+                     .when(df3['Registration State'] == 'VT', 'Vermont')
+                     .when(df3['Registration State'] == 'WA', 'Washington')
+                     .when(df3['Registration State'] == 'ND', 'North Dakota')
+                     .when(df3['Registration State'] == 'AL', 'Alabama')
+                     .when(df3['Registration State'] == 'IN', 'Indiana')
+                     .when(df3['Registration State'] == 'TN', 'Tennessee')
+                     .when(df3['Registration State'] == 'TX', 'Texas')
+                     .when(df3['Registration State'] == 'GA', 'Georgia')
+                     .when(df3['Registration State'] == 'CO', 'Colorado')
+                     .when(df3['Registration State'] == 'OK', 'Oklahoma')
+                     .when(df3['Registration State'] == 'SC', 'South Carolina')
+                     .when(df3['Registration State'] == 'OR', 'Oregon')
+                     .when(df3['Registration State'] == 'VA', 'Virginia')
+                     .when(df3['Registration State'] == 'RI', 'Rhode Island')
+                     .when(df3['Registration State'] == 'NH', 'New Hampshire')
+                     .when(df3['Registration State'] == 'NE', 'Nebraska')
+                     .when(df3['Registration State'] == 'OH', 'Ohio')
+                     .when(df3['Registration State'] == 'PA', 'Pennsylvania')
+                     .when(df3['Registration State'] == 'SK', 'Saskatchewan (Canada)')
+                     .when(df3['Registration State'] == 'AB', 'Alberta (Canada)')
+                     .when(df3['Registration State'] == 'PE', 'Prince Edward Island (Canada)')
+                     .when(df3['Registration State'] == 'WV', 'West Virginia')
+                     .when(df3['Registration State'] == 'MA', 'Massachusetts')
+                     .when(df3['Registration State'] == 'KS', 'Kansas')
+                     .when(df3['Registration State'] == 'NB', 'New Brunswick (Canada)')
+                     .when(df3['Registration State'] == 'YT', 'Yukon Territory (Canada)')
+                     .when(df3['Registration State'] == 'NF', 'Newfoundland (Canada)')
+					 .when(df3['Registration State'] == 'DP', 'U.S. State Dept')
+					 .when(df3['Registration State'] == 'FO', 'Foreign')
                     )
 
-# Filter out rows with null 'Registration State' 
-df=df.filter(~col('Registration State').isNull())
 
-# Charting abbreviations against their whole forms for 'Issuing Agency'
-df = df.withColumn('Issuing Agency',
-                     when(df['Issuing Agency'] == 'M', 'TRANSIT AUTHORITY')
-                     .when(df['Issuing Agency'] == 'U', 'PARKING CONTROL UNIT')
-                     .when(df['Issuing Agency'] == 'D', 'DEPARTMENT OF BUSINESS SERVICES')
-                     .when(df['Issuing Agency'] == 'B', 'TRIBOROUGH BRIDGE AND TUNNEL POLICE')
-                     .when(df['Issuing Agency'] == 'S', 'DEPARTMENT OF SANITATION')
-                     .when(df['Issuing Agency'] == 'T', 'TRAFFIC')
-                     .when(df['Issuing Agency'] == 'Z', 'METRO NORTH RAILROAD POLICE')
-                     .when(df['Issuing Agency'] == 'P', 'POLICE DEPARTMENT')
-                     .when(df['Issuing Agency'] == 'H', 'HOUSING AUTHORITY')
-                     .when(df['Issuing Agency'] == 'F', 'FIRE DEPARTMENT')
-                     .when(df['Issuing Agency'] == 'V', 'DEPARTMENT OF TRANSPORTATION')
-                     .when(df['Issuing Agency'] == 'O', 'NYS COURT OFFICERS')
-                     .when(df['Issuing Agency'] == 'C', 'CON RAIL')
-                     .when(df['Issuing Agency'] == 'X', 'OTHER/UNKNOWN AGENCIE')
-                     .when(df['Issuing Agency'] == '1', 'NYS OFFICE OF MENTAL HEALTH POLICE')
-                     .when(df['Issuing Agency'] == 'K', 'PARKS DEPARTMENT')
-                     .when(df['Issuing Agency'] == 'E', 'BOARD OF ESTIMATE')
-                     .when(df['Issuing Agency'] == 'A', 'PORT AUTHORITY')
-                     .when(df['Issuing Agency'] == 'R', 'NYC TRANSIT AUTHORITY MANAGERS')
-                     .when(df['Issuing Agency'] == 'N', 'NYS PARKS POLICE')
-                     .when(df['Issuing Agency'] == 'Y', 'HEALTH AND HOSPITAL CORP. POLICE')
-                     .when(df['Issuing Agency'] == 'L', 'LONG ISLAND RAILROAD')
-                     .when(df['Issuing Agency'] == 'G', 'TAXI AND LIMOUSINE COMMISSION')
-                     .when(df['Issuing Agency'] == '3', 'ROOSEVELT ISLAND SECURITY')
-                     .when(df['Issuing Agency'] == 'J', 'AMTRAK RAILROAD POLICE')
-                     .when(df['Issuing Agency'] == 'W', 'HEALTH DEPARTMENT POLICE')
-                     .when(df['Issuing Agency'] == 'I', 'STATEN ISLAND RAPID TRANSIT POLICE')
-                     .when(df['Issuing Agency'] == '8', 'SEA GATE ASSOCIATION POLICE')
-                     .when(df['Issuing Agency'] == 'Q', 'DEPARTMENT OF CORRECTION')
-                     .when(df['Issuing Agency'] == '4', 'WATERFRONT COMMISSION OF NY HARBOR')
-                     .when(df['Issuing Agency'] == '5', 'SUNY MARITIME COLLEGE')
-                     .when(df['Issuing Agency'] == '9', 'NYC OFFICE OF THE SHERIFF')
+
+df3 = df3.withColumn('Issuing Agency',
+                     when(df3['Issuing Agency'] == 'M', 'TRANSIT AUTHORITY')
+                     .when(df3['Issuing Agency'] == 'U', 'PARKING CONTROL UNIT')
+                     .when(df3['Issuing Agency'] == 'D', 'DEPARTMENT OF BUSINESS SERVICES')
+                     .when(df3['Issuing Agency'] == 'B', 'TRIBOROUGH BRIDGE AND TUNNEL POLICE')
+                     .when(df3['Issuing Agency'] == 'S', 'DEPARTMENT OF SANITATION')
+                     .when(df3['Issuing Agency'] == 'T', 'TRAFFIC')
+                     .when(df3['Issuing Agency'] == 'Z', 'METRO NORTH RAILROAD POLICE')
+                     .when(df3['Issuing Agency'] == 'P', 'POLICE DEPARTMENT')
+                     .when(df3['Issuing Agency'] == 'H', 'HOUSING AUTHORITY')
+                     .when(df3['Issuing Agency'] == 'F', 'FIRE DEPARTMENT')
+                     .when(df3['Issuing Agency'] == 'V', 'DEPARTMENT OF TRANSPORTATION')
+                     .when(df3['Issuing Agency'] == 'O', 'NYS COURT OFFICERS')
+                     .when(df3['Issuing Agency'] == 'C', 'CON RAIL')
+                     .when(df3['Issuing Agency'] == 'X', 'OTHER/UNKNOWN AGENCIE')
+                     .when(df3['Issuing Agency'] == '1', 'NYS OFFICE OF MENTAL HEALTH POLICE')
+                     .when(df3['Issuing Agency'] == 'K', 'PARKS DEPARTMENT')
+                     .when(df3['Issuing Agency'] == 'E', 'BOARD OF ESTIMATE')
+                     .when(df3['Issuing Agency'] == 'A', 'PORT AUTHORITY')
+                     .when(df3['Issuing Agency'] == 'R', 'NYC TRANSIT AUTHORITY MANAGERS')
+                     .when(df3['Issuing Agency'] == 'N', 'NYS PARKS POLICE')
+                     .when(df3['Issuing Agency'] == 'Y', 'HEALTH AND HOSPITAL CORP. POLICE')
+                     .when(df3['Issuing Agency'] == 'L', 'LONG ISLAND RAILROAD')
+                     .when(df3['Issuing Agency'] == 'G', 'TAXI AND LIMOUSINE COMMISSION')
+                     .when(df3['Issuing Agency'] == '3', 'ROOSEVELT ISLAND SECURITY')
+                     .when(df3['Issuing Agency'] == 'J', 'AMTRAK RAILROAD POLICE')
+                     .when(df3['Issuing Agency'] == 'W', 'HEALTH DEPARTMENT POLICE')
+                     .when(df3['Issuing Agency'] == 'I', 'STATEN ISLAND RAPID TRANSIT POLICE')
+                     .when(df3['Issuing Agency'] == '8', 'SEA GATE ASSOCIATION POLICE')
+                     .when(df3['Issuing Agency'] == 'Q', 'DEPARTMENT OF CORRECTION')
+                     .when(df3['Issuing Agency'] == '4', 'WATERFRONT COMMISSION OF NY HARBOR')
+                     .when(df3['Issuing Agency'] == '5', 'SUNY MARITIME COLLEGE')
+                     .when(df3['Issuing Agency'] == '9', 'NYC OFFICE OF THE SHERIFF')
                     )
-					
-# Grouping Vehicle Body Type based on common aspects
+
 heavy_vehicle_keywords = [
-    "TRAC", "TRK","TRK.", "TANK", "FLAT", "DUMP", "TR/C", "WG", "SEMI", "TR/T", "TRL", "TK", "TRAIL", 
+    "TRAC", "TRK", "TANK", "FLAT", "DUMP", "TR/C", "WG", "SEMI", "TR/T", "TRL", "TK", "TRAIL", 
     "TRAI", "TRUC", "CARG", "CMIX", "T/CR", "TR/E", "CARR", "TR", "VAN", "TRUCK", "TOW", "TRACT", 
     "DLR", "TRLR", "BUS", "FIRE", "GARB", "REF", "LNCH", "REFG", "MOT", "U", "SNOW", "H/WH", 
-    "BU", "M/H", "UHAU", "CHAS", "BULK", "CB", "LTRL", "PSVA", "B/V", "DOLL", "HEAVY", 
-    "EQ", "RAC", "RL", "RACK", "REFR", "CAN", "COOL", "TC", "STOR", "W/CR", "FRUE", "STAK", 
+    "BU", "M/H", "UHAU", "CHAS", "BULK", "CB", "LTRL", "SCOO", "PSVA", "B/V", "DOLL", "HEAVY", 
+    "EQ", "RAC", "CB", "RL", "RACK", "REFR", "CAN", "COOL", "TC", "STOR", "W/CR", "FRUE", "STAK", 
     "FURN", "MOV", "STK", "COM", "W/VA", "STAB", "ELEV", "SCH", "RID", "LOADE", "BLD", "W/CA", 
     "B/GR", "BOOM", "O/SE", "SCAF", "CONCR", "GROU", "ROOF", "ICE", "B/F", "SAND", "RECR", "DROPS", 
     "PORTA", "EXCAV", "WOOD", "CONST", "FIR", "LIM", "LIFT", "CATER", "SCHB", "RIG", "DR", "W/DR", 
     "G/GR", "G/GS", "SPRI", "FLEET", "SPCI", "ME", "AIR", "TIRE", "DETEC", "SALT", "LOAD", "D/CA", 
-    "D/CW", "INDU", "SCRA", "W/GA", "W/FO", "W/OI", "D/CE", "M/SK", 'BUS.', 'TRL.']
+    "D/CW", "INDU", "SCRA", "W/GA", "W/FO", "W/OI", "D/CE", "M/SK"
+]
 
-two_wheeler = ["MCY", "MC", "MOPD", "MOTO", "ATV", "SC", "SKEB", "TRIC", "MOP", "SCOO", "SCOT", "MOTOR", "MOPG", "MOPP", "MOPS", "MOPH", "MCY", "MCR", "SPO", "SPOF", "SPS", "SPSG", "SPSL", "SPV", "MCP", "TOM", "MRV", "MRVC", "MFW", "MB", "MRW", "OMS", "OTR", "OTRC", "OTH", "TO", "TOR", "TRS", "TSR", "TT", "TTM", "TTN", "TTP", "TTS", "TUBE", "TUK", "TURT", "TURU", "TUV", "TWIN", "TWOS", "TWTR"]
-
-four_wheeler=['CXMI', 'TRUK', '2C', 'ZER', '4SLE', 'TRAL', 'ANXS', 'CT', 'ANB', 'DEL', 'OMR', 'AMG', 'HNH', 'WSR', 'VEH-', 'DELE', 'PICH', 'AMR', 'IX', 'TRY', 'GV', 'NC', 'MINI', 'UTIL', 'BL', 'OTHE', 'CV', 'SN/P', 'LIMO', 'TV', 'POWE', 'FOUR', 'CMHI', 'TRRL', 'HIWH', '5D', 'INCE', 'ET', 'KIA', 'ANL', 'JEEP', 'AO', 'ONAT', 'LMB', 'TRAILER', 'MX', 'BILR', 'TRAU', 'NXC', 'CKNE', 'CAM', 'STWA', 'SNL', 'AIAI', '2DSD', 'PAS', 'OU', 'CL', 'WORK', 'CONY', 'FGHT', 'CH', 'BMS', 'TWOD', 'ALL', 'HUMM', 'OLHE', 'BLUE', 'FRT', 'EXPL', 'HOUS', 'ORM', 'OLX', 'OTNE', 'AS', 'XRE', 'RF', 'BX', 'RJZL', '2HB', 'N/S', 'CXI', 'ANEL', 'ONRL', '4DSE', 'TU', 'HYUN', 'RANG', 'ANOE', 'MH', 'HY', 'TLE', 'OVX', 'PASS', 'MD', 'MN', 'CMRU', 'TRIM', 'ROS', 'CUSH', '4S', 'TERL', 'REG', 'SUBN', 'NS', 'PORS', 'NG', 'RPLC', 'TRAD', 'H/TR', 'EC', 'CAMI', 'TARI', 'C4', 'OVL', 'SP', 'EXPE', 'SPOR', 'AGI', 'NER', '2 DR', 'TBL', 'HC', 'P-U', 'RMA', 'UTLI', 'AM', 'MOC', 'TRLA', 'MO', 'AK', 'SHUT', 'STRA', 'UT', '4DSW', 'BOL', 'BUD', 'DEFI', 'MDEL', 'B', 'OSOO', 'APPP', 'CMR', 'GONV', 'REFG', 'GY', 'BOAT', '2HT', 'RRB', 'REK', 'IML', 'SRIB', 'ANOL', 'T', 'CW', 'TRUL', 'IMS', 'SWT', 'COPE', 'CA', '8V', 'TPAC', 'ISUZ', 'PICK', '4C', 'OVC', 'MOCL', 'REFU', 'CLLM', 'TAHO', 'SD', '2F', 'PICKU', 'SUW', 'MCL', 'MCTO', 'PU', 'LTR', 'W/SR', 'OMU', 'THR', 'BS', 'HRSE', 'M', 'OTM', 'CRLA', 'AEL', 'MACK', '2DSE', 'TLK', 'PATH', 'RD', 'MOPE', 'ULT', 'CONV', 'CRAF', 'OOCR', 'PRK', 'G', 'OVE', 'JOII', 'SAT', 'RAIL', 'TRF', 'MTCY', 'SV', 'OB', 'STAW', 'RTUC', 'ON', 'TAA', 'THW', 'MTCL', 'OUTB', 'FLTB', 'COOP', 'WAGON', 'OOL', 'GLAT', 'COUP', 'BIS', 'RCE', 'II', 'PCL', 'MR', 'C', 'HYNH', 'YW', 'ASRC', 'LUXV', 'TRHR', 'DELIVERY', 'TRAV', 'OORL', 'BK', 'BURG', 'FORD', 'SDN', 'CNIR', 'RXM', 'FODO', 'EGOL', 'SL', '2Z', 'RGR', 'ILI', 'RAD', 'LSUO', 'R', 'UV', 'TLC', 'MS', 'DCOM', 'TRCL', 'ORS', 'MERC', 'BN', 'MACY', 'C/CB', 'FREG', 'UITL', 'TS', 'TREA', 'PT', 'OUXL', '4DSD', 'TAXI', 'CXRG', '4 DR', 'CHRY', '4DRS', 'CI', 'H/IN', 'SRF', 'DOZ', 'MCYL', 'XXM', 'IDLL', 'S', 'VW', 'WAG', 'CZ', 'U', 'AMF', 'COHV', 'PICK-UP', 'ILSJ', 'UM', 'DELV', 'PCV', 'OSOL', 'RBM', 'TRKC', 'YK', 'HWO', 'SM', 'OML', 'WB', 'REFN', 'P/SH', 'OII', 'BOXT', 'YY', 'MOBL', '4DHT', 'PC', 'L', 'SUL', 'OMRL', 'PK', 'NOL', 'SCL', 'BOX', 'BLBI', 'ULIT', 'MEC', '4T', '4DHB', 'STAG', 'H/WH', 'CUST', 'LNCH', 'PINN', 'LO', 'REFF', 'D', 'RFEF', 'EO', '34PU', 'POLE', 'CNI', 'STAR', 'PICKUP', 'JUTI', '2CV', 'MOTC', 'PLSH', 'Four Wheeler', '4 WH', 'COU', 'DECA', 'ADP', 'CX', 'CMC', 'MODC', '4 DO', 'MP', 'IC', 'TKR', 'SS', 'TAX', 'WAGO', '12PU', 'MK', 'VHL', 'FLFT', 'TRD', 'HWH', 'AMB', 'ONE', 'LL', 'GRAN', 'OIM', 'HOW', 'R/RD', 'IJ', 'OLO', 'CM', 'SCHO', '3D', 'ARC', 'GOUR', 'APP', 'BLAC']
-
-# Adding new column 'Vehicle Size' based on 'Vehicle Body Type'
-df = df.withColumn('Vehicle Size',
-                      when(df['Vehicle Body Type'].isin(heavy_vehicle_keywords), 'Heavy Vehicle')
-                      .when(df['Vehicle Body Type'].isin(two_wheeler), 'Two Wheeler')
-                      .when(df['Vehicle Body Type'].isin(four_wheeler), 'Four Wheeler')
+two_wheeler = ["MCY", "MC", "MOPD", "MOTO", "MOT", "ATV", "SC", "SKEB", "TRIC", "UT", "MOP", "SCOO", "SCOT", "MOTOR","MOPD", "MOPG", "MOPP", "MOPS", "MOPH", "MCY", "MCR", "SPO", "SPOF", "SPS", "SPSG", "SPSL", "SPV", "MCP", "TOM", "MRV", "MRVC", "MFW", "MB", "MRW", "OMS", "OTR", "OTRC", "OTH", "TOW", "TO", "TOR", "TRS", "TSR", "TT", "TTM", "TTN", "TTP", "TTS", "TUBE", "TUK", "TURT", "TURU", "TUV", "TWIN", "TWOS", "TWTR"]
+four_wheeler=['CXMI', 'TRUK', '2C', 'MOT', 'ZER', '4SLE', 'TRAL', 'ANXS', 'CT', 'ANB', 'DEL', 'OMR', 'AMG', 'HNH', 'WSR', 'VEH-', 'DELE', 'PICH', 'AMR', 'IX', 'TRY', 'GV', 'NC', 'MINI', 'UTIL', 'BL', 'BUS.', 'OTHE', 'CV', 'SN/P', 'LIMO', 'TOW', 'TV', 'POWE', 'FOUR', 'CMHI', 'TRRL', 'HIWH', '5D', 'INCE', 'ET', 'KIA', 'ANL', 'JEEP', 'AO', 'ONAT', 'LMB', 'TRAILER', 'MX', 'BILR', 'TRAU', 'NXC', 'CKNE', 'CAM', 'STWA', 'SNL', 'AIAI', '2DSD', 'PAS', 'OU', 'CL', 'WORK', 'CONY', 'FGHT', 'CH', 'BMS', 'TWOD', 'ALL', 'HUMM', 'OLHE', 'BLUE', 'FRT', 'EXPL', 'HOUS', 'ORM', 'OLX', 'OTNE', 'AS', 'XRE', 'RF', 'BX', 'RJZL', '2HB', 'FIRE', 'N/S', 'CXI', 'ANEL', 'ONRL', '4DSE', 'TU', 'HYUN', 'RANG', 'ANOE', 'MH', 'HY', 'TLE', 'OVX', 'PASS', 'MD', 'MN', 'CMRU', 'SCOO', 'TRIM', 'ROS', 'CUSH', '4S', 'TERL', 'REG', 'SUBN', 'NS', 'PORS', 'NG', 'RPLC', 'GARB', 'TRAD', 'TRK.', 'H/TR', 'EC', 'CAMI', 'TARI', 'C4', 'OVL', 'SP', 'EXPE', 'TRLR', 'SPOR', 'AGI', 'NER', '2 DR', 'TBL', 'HC', 'P-U', 'RMA', 'UTLI', 'AM', 'MOC', 'TRLA', 'MO', 'AK', 'SHUT', 'STRA', 'UT', '4DSW', 'BOL', 'BUD', 'DEFI', 'MDEL', 'B', 'OSOO', 'APPP', 'CMR', 'GONV', 'REFG', 'GY', 'BOAT', '2HT', 'RRB', 'REK', 'IML', 'SRIB', 'ANOL', 'T', 'CW', 'TRUL', 'IMS', 'SWT', 'COPE', 'CA', '8V', 'TRL.', 'TPAC', 'ISUZ', 'PICK', '4C', 'OVC', 'MOCL', 'REFU', 'TANK', 'CLLM', 'TAHO', 'SD', '2F', 'PICKU', 'SUW', 'MCL', 'MCTO', 'PU', 'LTR', 'W/SR', 'OMU', 'THR', 'BS', 'HRSE', 'M', 'OTM', 'CRLA', 'AEL', 'MACK', '2DSE', 'TLK', 'PATH', 'TRL', 'RD', 'MOPE', 'ULT', 'CONV', 'CRAF', 'OOCR', 'PRK', 'TRAIL', 'G', 'OVE', 'JOII', 'SAT', 'RAIL', 'TRF', 'MTCY', 'SV', 'OB', 'STAW', 'RTUC', 'ON', 'TAA', 'THW', 'MTCL', 'OUTB', 'FLTB', 'COOP', 'WAGON', 'OOL', 'GLAT', 'COUP', 'BIS', 'RCE', 'II', 'PCL', 'MR', 'C', 'HYNH', 'YW', 'ASRC', 'LUXV', 'TRHR', 'DELIVERY', 'TRAV', 'OORL', 'BK', 'BURG', 'REF', 'FORD', 'VAN', 'SDN', 'CNIR', 'RXM', 'TRUCK', 'FODO', 'EGOL', 'SL', '2Z', 'RGR', 'ILI', 'RAD', 'LSUO', 'R', 'UV', 'TLC', 'MS', 'DCOM', 'TRCL', 'ORS', 'MERC', 'BN', 'BUS', 'MACY', 'C/CB', 'FREG', 'UITL', 'TS', 'TREA', 'PT', 'OUXL', '4DSD', 'TAXI', 'CXRG', '4 DR', 'CHRY', 'TRACT', '4DRS', 'CI', 'H/IN', 'SRF', 'DOZ', 'MCYL', 'XXM', 'IDLL', 'S', 'VW', 'WAG', 'CZ', 'U', 'AMF', 'COHV', 'PICK-UP', 'ILSJ', 'UM', 'DELV', 'PCV', 'OSOL', 'RBM', 'UHAU', 'TRKC', 'YK', 'HWO', 'SM', 'OML', 'WB', 'REFN', 'FLAT', 'P/SH', 'OII', 'CMIX', 'BOXT', 'YY', 'MOBL', '4DHT', 'PC', 'L', 'SUL', 'OMRL', 'PK', 'NOL', 'SCL', 'BOX', 'BLBI', 'ULIT', 'MEC', '4T', '4DHB', 'STAG', 'H/WH', 'CUST', 'LNCH', 'PINN', 'LO', 'REFF', 'D', 'RFEF', 'EO', 'STAK', '34PU', 'POLE', 'CNI', 'STAR', 'PICKUP', 'JUTI', 'Truc', '2CV', 'MOTC', 'PLSH', 'Four Wheeler', '4 WH', 'COU', 'DECA', 'ADP', 'CX', 'CMC', 'MODC', '4 DO', 'MP', 'IC', 'TKR', 'SS', 'TAX', 'WAGO', '12PU', 'MK', 'VHL', 'FLFT', 'TRD', 'HWH', 'AMB', 'ONE', 'LL', 'GRAN', 'OIM', 'HOW', 'R/RD', 'IJ', 'TRAC', 'OLO', 'CM', 'SCHO', '3D', 'ARC', 'GOUR', 'APP', 'BLAC']
+df4=df3
+df4 = df4.withColumn('Vehicle Size',
+                      when(df4['Vehicle Body Type'].isin(heavy_vehicle_keywords), 'Heavy Vehicle')
+                      .when(df4['Vehicle Body Type'].isin(two_wheeler), 'Two Wheeler')
+                      .when(df4['Vehicle Body Type'].isin(four_wheeler), 'Four Wheeler')
                       .otherwise('Others'))
+					  
 
-# Cleaning 'Violation Time'
-df1=df.filter(~substring(col('Violation Time'),-1,1).isin('A','P'))
+from pyspark.sql.functions import substring, concat, lit
 
-df1 = df1.withColumn("Violation Time",
+df11=df4.filter(~substring(col('Violation Time'),-1,1).isin('A','P'))
+
+df11 = df11.withColumn("Violation Time",
                     concat(substring(col("Violation Time"), 1, 2), lit(":"), substring(col("Violation Time"), 3, 2)))
 
-df2=df.filter(substring(col('Violation Time'),-1,1)=='A')	
-	
-df2 = df2.withColumn("Violation Time",
+
+df12=df4.filter(substring(col('Violation Time'),-1,1)=='A')		
+df12 = df12.withColumn("Violation Time",
                     concat(substring(col("Violation Time"), 1, 2), lit(":"), substring(col("Violation Time"), 3, 2)))
 
-df3 = df.withColumn('Hour', when(substring('Violation Time', -1, 1) == 'P', 
-                                     concat(substring('Violation Time', 1, 2), lit(' ')).cast("int") + 11)
+df13=df4.filter(substring(col('Violation Time'),-1,1)=='P')
+df13 = df13.withColumn('Hour', when(substring('Violation Time', -1, 1) == 'P', 
+                                     concat(substring('Violation Time', 1, 2), lit(' ')).cast("int") + 12)
                       .otherwise(substring('Violation Time', 1, 2)))
 				
-df3 = df3.withColumn('Violation Time', concat(col('Hour'), lit(":"), substring(col('Violation Time'), 3, 2)))
+df13 = df13.withColumn('Violation Time', concat(col('Hour'), lit(":"), substring(col('Violation Time'), 3, 2)))
+					  
+df13=df13.drop('Hour')
+df5=df11.union(df12)
+df5=df5.union(df13)
 
-df3=df3.drop('Hour')
-df4=df1.union(df2)
-df=df4.union(df3)
+#from pyspark.sql.functions import date_format
+#df5 = df5.withColumn("Violation Time", substring(col("Violation Time"), 1, 5).cast("timestamp"))
 
-df = df.withColumn("violation_time", regexp_replace("violation time", r'(\d{2}:\d)(?=\s)', r'\g<1>0'))
-df = df.withColumn("violation_time", to_timestamp("violation time", "HH:mm"))
+from pyspark.sql.functions import when, col
 
-df = df.filter(df['violation time'].rlike('^\\d{2}:\\d{2}$'))
-df = df.withColumn("violation time", to_timestamp("violation time", "HH:mm"))
-
-df = df.withColumn(
-    "violation time",
-    date_format("violation time", "HH:mm")
-)
-
-df =df.filter(~col('Violation Time').isNull())
-# Charting abbreviations against their whole forms for 'Violation in front of or opposite'
-df = df.withColumn('violation in front of or opposite',
+df5 = df5.withColumn('violation in front of or opposite',
                      when(col('violation in front of or opposite') == 'R', 'Right')
                      .when(col('violation in front of or opposite') == 'F', 'Front')
                      .when(col('violation in front of or opposite') == 'O', 'Opposite')
-                     .when(col('violation in front of or opposite') == 'I', 'Intersection')
-                     .otherwise('Others'))
-		
-# Mapping 'Plate Type'       
-df = df.withColumn('Plate Type',
+                     .when(col('violation in front of or opposite').isNull(), 'Others')
+                     .when(col('violation in front of or opposite') == 'X', 'Others')
+                     .when(col('violation in front of or opposite') == 'I', 'Intersection'))
+df6=df5
+df6 = df6.withColumn('Plate Type',
                      when(col('Plate Type') == 'CCK', 'Commercial Cargo Truck')
                      .when(col('Plate Type') == 'LMB', 'Limousine')
                      .when(col('Plate Type') == 'CLG', 'College/University Vehicle')
@@ -345,10 +332,10 @@ df = df.withColumn('Plate Type',
                      .when(col('Plate Type') == 'TMP', 'Temporary Plate')
                      .when(col('Plate Type') == 'SNO', 'Snow Plow')
                      .when(col('Plate Type') == 'LOC', 'Local Government Vehicle')
-                     .otherwise('Others'))
+                     .otherwise(col('Plate Type')))
+					 
 
-# 'Vehicle Color' 					 
-df = df.withColumn('Vehicle Color',
+df6 = df6.withColumn('Vehicle Color',
                      when(col('Vehicle Color') == 'GY', 'Grey')
                      .when(col('Vehicle Color') == 'WH', 'White')
                      .when(col('Vehicle Color') == 'BK', 'Black')
@@ -415,28 +402,11 @@ df = df.withColumn('Vehicle Color',
                      .when(col('Vehicle Color') == 'BKOR', 'Black and Orange')
                      .otherwise('Others'))
 
-df = df.dropDuplicates()
-
-df1=spark.read.csv('s3://transformationall/smalltable/',header=True)
-
-df2 = df.join(df1, df['violation code'] == df1['violation code'], how='inner')
-
-df2=df2.select(df['*'],df1['Violation Description'],df1['Manhattan Fine'],df1['Other Fine'])
-
-df3 = df2.withColumn('Fine Amount', when(df2['violation county'] == 'Manhattan', df2['Manhattan Fine']).otherwise(df2['Other Fine']))
-
-df3=df3.drop('Manhattan Fine','Other Fine')
-
-df3 = df3.withColumn("Fine Amount", col("Fine Amount").cast(LongType()))
-	 
-df1.coalesce(20).write \
-	  .format("parquet") \
-	  .option("header", "true") \
-	  .mode("overwrite") \
-	  .save("s3://projectdata5/datafile/")
-	  
-	  
-spark.stop()
-
-
-
+df6 = df6.withColumn('Violation Code', when(col('violation code') == 0, 99).otherwise(col('Violation Code')))
+ 
+			 
+df6.coalesce(1).write \
+	.format("parquet") \
+	.option("header", "true") \
+	.mode("overwrite") \
+	.save("s3://nycgroup05datawarehouse/warehousenyc")

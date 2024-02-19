@@ -34,5 +34,7 @@ df4 = df1.union(df2)
 df5 = df4.union(df3)
 print("Dataframe is loaded")
 df5.coalesce(1).write.parquet("s3://nycgroup05datalake/fiveyearsnycdata")
+df6 = spark.read.csv("s3://nycparkingtickets/parking_violation_codes (1).csv",header=True)
+df6.write.parquet("s3://nycgroup05datalake/smalltable")
 
 job.commit()

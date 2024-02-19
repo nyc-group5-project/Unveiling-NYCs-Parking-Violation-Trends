@@ -22,7 +22,7 @@ Resources:
       WorkerType: G.1X
       Command:
         Name: glueetl
-        ScriptLocation: s3://scriptsgroup-5/injesion.py
+        ScriptLocation: s3://nycgroup05datalake/scripts/injesion.py
       DefaultArguments:
         "--job-language": "python"
       ExecutionProperty:
@@ -39,7 +39,7 @@ Resources:
       WorkerType: G.1X
       Command:
         Name: glueetl
-        ScriptLocation: s3://scriptsgroup-5/transformation.py
+        ScriptLocation: s3://nycgroup05datalake/scripts/transformation.py
       DefaultArguments:
         "--job-language": "python"
       ExecutionProperty:
@@ -110,7 +110,19 @@ Resources:
           - Path: s3://nycgroup05datawarehouse # Specify the path of the bucket you want to crawl
       Role: arn:aws:iam::314119374691:role/LabRole
 
-
+    MyAthenaWorkGroup:
+        Type: AWS::Athena::WorkGroup
+        Properties:
+            Name: gitworkgrp
+            Description: workgroup for Athena
+            State: ENABLED
+            WorkGroupConfiguration:
+                BytesScannedCutoffPerQuery: 200000000
+                EnforceWorkGroupConfiguration: false
+                PublishCloudWatchMetricsEnabled: true
+                RequesterPaysEnabled: true
+                ResultConfiguration:
+                    OutputLocation: s3://nycgroup05datawarehouse/Query/    
 
   
 

@@ -123,7 +123,7 @@ Resources:
             NotifyDelayAfter: 1
       Predicate:
         Conditions:
-          - JobName: !Ref GlueTriggerTransform
+          - JobName: !Ref TransformationGlueJob
             LogicalOperator: EQUALS
             State: SUCCEEDED
         Logical: AND

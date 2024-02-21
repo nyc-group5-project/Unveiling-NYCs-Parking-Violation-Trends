@@ -110,6 +110,29 @@ Resources:
           - Path: s3://nycgroup05datawarehouse/warehousenyc/ # Specify the path of the bucket you want to crawl
       Role: arn:aws:iam::314119374691:role/LabRole
 
+  GlueTriggerForCrawler:
+    Type: AWS::Glue::Trigger
+    DependsOn:
+      - GlueTriggerTransform
+    Properties:
+      Name: GlueTriggerForCrawler
+      Type: CONDITIONAL
+      Actions:
+        - CrawlerName: !Ref DataCrawler
+          NotificationProperty:
+            NotifyDelayAfter: 1
+      Predicate:
+        Conditions:
+          - JobName: !Ref GlueTriggerTransform
+            LogicalOperator: EQUALS
+            State: SUCCEEDED
+        Logical: AND
+      Type: CONDITIONAL
+      StartOnCreation: True
+      WorkflowName: nyc-workflow
+
+
+
   MyAthenaWorkGroup:
       Type: AWS::Athena::WorkGroup
       Properties:

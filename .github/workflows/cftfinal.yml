@@ -107,7 +107,7 @@ Resources:
       DatabaseName: gitdatabase # Replace with your desired Glue database name
       Targets:
         S3Targets:
-          - Path: s3://nycgroup05datawarehouse # Specify the path of the bucket you want to crawl
+          - Path: s3://nycgroup05datawarehouse/warehousenyc/ # Specify the path of the bucket you want to crawl
       Role: arn:aws:iam::314119374691:role/LabRole
 
   MyAthenaWorkGroup:

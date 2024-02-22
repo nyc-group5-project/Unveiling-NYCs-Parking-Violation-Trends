@@ -222,18 +222,26 @@ df2=df.filter(substring(col('Violation Time'),-1,1)=='A')
 df2 = df2.withColumn("Violation Time",
                     concat(substring(col("Violation Time"), 1, 2), lit(":"), substring(col("Violation Time"), 3, 2)))
 
-df3 = df.withColumn('Hour', when(substring('Violation Time', -1, 1) == 'P', 
-                                     concat(substring('Violation Time', 1, 2), lit(' ')).cast("int") + 11)
+
+df8=df.filter(substring(col('Violation Time'),-1,1)=='P')
+df8=df8.filter(substring(col('violation time'),1,2)=='12')
+df8 = df8.withColumn("Violation Time",
+                    concat(substring(col("Violation Time"), 1, 2), lit(":"), substring(col("Violation Time"), 3, 2)))
+
+df9=df.filter(substring(col('Violation Time'),-1,1)=='P')
+df9=df9.filter(substring(col('violation time'),1,2)!='12')
+
+df9 = df9.withColumn('Hour', when(substring('Violation Time', -1, 1) == 'P', 
+                                     concat(substring('Violation Time', 1, 2)).cast("int") + 12)
                       .otherwise(substring('Violation Time', 1, 2)))
 				
-df3 = df3.withColumn('Violation Time', concat(col('Hour'), lit(":"), substring(col('Violation Time'), 3, 2)))
+df9 = df9.withColumn('Violation Time', concat(col('Hour'), lit(":"), substring(col('Violation Time'), 3, 2)))
 
-df3=df3.drop('Hour')
+df9=df9.drop('Hour')
+df3=df8.union(df9)
+
 df4=df1.union(df2)
 df=df4.union(df3)
-
-df = df.withColumn("violation_time", regexp_replace("violation time", r'(\d{2}:\d)(?=\s)', r'\g<1>0'))
-df = df.withColumn("violation_time", to_timestamp("violation time", "HH:mm"))
 
 df = df.filter(df['violation time'].rlike('^\\d{2}:\\d{2}$'))
 df = df.withColumn("violation time", to_timestamp("violation time", "HH:mm"))

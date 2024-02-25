@@ -38,7 +38,7 @@ Resources:
       Timeout: 240
       WorkerType: G.1X
       Command:
-        Name: glueetl-2
+        Name: glueetl-22
         ScriptLocation: s3://nycgroup05datalake-2/scripts/transformation.py
       DefaultArguments:
         "--job-language": "python"
@@ -96,6 +96,9 @@ Resources:
   DataCrawler:
     Type: AWS::Glue::Crawler
     DependsOn:
+      - SourceBucket
+      - DestinationBucket
+      - GlueDatabase
       - GlueWorkflow
       - GlueTriggerTransform
     Properties:

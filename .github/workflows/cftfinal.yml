@@ -21,7 +21,7 @@ Resources:
       Timeout: 120
       WorkerType: G.1X
       Command:
-        Name: glueetl-2
+        Name: glueetl
         ScriptLocation: s3://nycgroup05datalake-2/scripts/injesion.py
       DefaultArguments:
         "--job-language": "python"
@@ -38,7 +38,7 @@ Resources:
       Timeout: 240
       WorkerType: G.1X
       Command:
-        Name: glueetl-22
+        Name: glueetl
         ScriptLocation: s3://nycgroup05datalake-2/scripts/transformation.py
       DefaultArguments:
         "--job-language": "python"

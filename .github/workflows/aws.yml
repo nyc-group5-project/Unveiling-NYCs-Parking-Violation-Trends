@@ -17,7 +17,7 @@ jobs:
       - name: Deploy CloudFormation Stack
         run: |
           aws cloudformation deploy \
-            --stack-name group5nyc \
+            --stack-name group5nyc-2 \
             --template-file .github/workflows/cftfinal.yml \
             --capabilities CAPABILITY_NAMED_IAM
         env:
@@ -29,7 +29,7 @@ jobs:
 
       - name: Upload Script to S3 Bucket injesion
         run: |
-          aws s3 cp .github/workflows/injesion.py s3://nycgroup05datalake/scripts/
+          aws s3 cp .github/workflows/injesion.py s3://nycgroup05datalake-2/scripts/
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -38,7 +38,7 @@ jobs:
 
       - name: Upload Script to S3 Bucket trnsformation
         run: |
-          aws s3 cp .github/workflows/transformation.py s3://nycgroup05datalake/scripts/
+          aws s3 cp .github/workflows/transformation.py s3://nycgroup05datalake-2/scripts/
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -47,16 +47,7 @@ jobs:
 
       - name: Start glue workflow
         run: |
-          aws glue start-workflow-run --name nyc-workflow
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-
-      - name: Start Crawler
-        run: |
-          aws glue start-crawler --name data-crawler5
+          aws glue start-workflow-run --name nyc-workflow-2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

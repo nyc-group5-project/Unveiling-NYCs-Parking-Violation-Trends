@@ -4,25 +4,25 @@ Resources:
   SourceBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: nycgroup05datalake
+      BucketName: nycgroup05datalake-2
 
   DestinationBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: nycgroup05datawarehouse
+      BucketName: nycgroup05datawarehouse-2
 
   IngestionGlueJob:
     Type: AWS::Glue::Job
     Properties:
-      Name: nyc-ingestion
+      Name: nyc-ingestion-2
       Role: arn:aws:iam::314119374691:role/LabRole
       GlueVersion: 4.0
       NumberOfWorkers: 5
       Timeout: 120
       WorkerType: G.1X
       Command:
-        Name: glueetl
-        ScriptLocation: s3://nycgroup05datalake/scripts/injesion.py
+        Name: glueetl-2
+        ScriptLocation: s3://nycgroup05datalake-2/scripts/injesion.py
       DefaultArguments:
         "--job-language": "python"
       ExecutionProperty:
@@ -31,15 +31,15 @@ Resources:
   TransformationGlueJob:
     Type: AWS::Glue::Job
     Properties:
-      Name: nyc-transformation
+      Name: nyc-transformation-2
       Role: arn:aws:iam::314119374691:role/LabRole
       GlueVersion: 4.0
       NumberOfWorkers: 5
       Timeout: 240
       WorkerType: G.1X
       Command:
-        Name: glueetl
-        ScriptLocation: s3://nycgroup05datalake/scripts/transformation.py
+        Name: glueetl-2
+        ScriptLocation: s3://nycgroup05datalake-2/scripts/transformation.py
       DefaultArguments:
         "--job-language": "python"
       ExecutionProperty:
@@ -50,7 +50,7 @@ Resources:
     Properties:
       Description: ETL Job
       MaxConcurrentRuns: 1
-      Name: nyc-workflow
+      Name: nyc-workflow-2
 
   GlueTriggerImport:
     Type: AWS::Glue::Trigger
@@ -61,9 +61,9 @@ Resources:
       Actions:
         - JobName: !Ref IngestionGlueJob
       Description: Triggers the Import Jobs
-      Name: gluetriggerimport
+      Name: gluetriggerimport-2
       Type: EVENT
-      WorkflowName: nyc-workflow
+      WorkflowName: nyc-workflow-2
 
   GlueTriggerTransform:
     Type: AWS::Glue::Trigger
@@ -75,7 +75,7 @@ Resources:
       Actions:
         - JobName: !Ref TransformationGlueJob
       Description: Triggers the transformation job
-      Name: gluetriggertransform
+      Name: gluetriggertransform-2
       Predicate:
         Conditions:
           - JobName: !Ref IngestionGlueJob
@@ -84,30 +84,26 @@ Resources:
         Logical: AND
       Type: CONDITIONAL
       StartOnCreation: True
-      WorkflowName: nyc-workflow
-
+      WorkflowName: nyc-workflow-2
 
   GlueDatabase:
         Type: AWS::Glue::Database
         Properties:
             CatalogId: !Ref AWS::AccountId
             DatabaseInput:
-                Name: gitdatabase
+                Name: gitdatabase-2
 
   DataCrawler:
     Type: AWS::Glue::Crawler
     DependsOn:
-      - SourceBucket
-      - DestinationBucket
-      - GlueDatabase
       - GlueWorkflow
       - GlueTriggerTransform
     Properties:
-      Name: data-crawler5
-      DatabaseName: gitdatabase # Replace with your desired Glue database name
+      Name: data-crawler5-2
+      DatabaseName: gitdatabase-2
       Targets:
         S3Targets:
-          - Path: s3://nycgroup05datawarehouse/warehousenyc/ # Specify the path of the bucket you want to crawl
+          - Path: s3://nycgroup05datawarehouse-2/warehousenyc/ 
       Role: arn:aws:iam::314119374691:role/LabRole
 
   GlueTriggerForCrawler:
@@ -115,7 +111,7 @@ Resources:
     DependsOn:
       - GlueTriggerTransform
     Properties:
-      Name: GlueTriggerForCrawler
+      Name: GlueTriggerForCrawler-2
       Type: CONDITIONAL
       Actions:
         - CrawlerName: !Ref DataCrawler
@@ -129,14 +125,13 @@ Resources:
         Logical: AND
       Type: CONDITIONAL
       StartOnCreation: True
-      WorkflowName: nyc-workflow
-
+      WorkflowName: nyc-workflow-2
 
 
   MyAthenaWorkGroup:
       Type: AWS::Athena::WorkGroup
       Properties:
-          Name: gitworkgrp
+          Name: gitworkgrp-2
           Description: workgroup for Athena
           State: ENABLED
           WorkGroupConfiguration:
@@ -145,9 +140,4 @@ Resources:
               PublishCloudWatchMetricsEnabled: true
               RequesterPaysEnabled: true
               ResultConfiguration:
-                  OutputLocation: s3://nycgroup05datawarehouse/Query/    
-
-  
-
-
-      
+                  OutputLocation: s3://nycgroup05datawarehouse-2/Query/    

@@ -8,7 +8,7 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 # Reading merged parquet file	
-df=spark.read.parquet("s3://nycgroup05datalake/fiveyearsnycdata/",header=True)
+df=spark.read.parquet("s3://nycgroup05datalake-2/fiveyearsnycdata/",header=True)
 
 spark.conf.set("spark.sql.legacy.timeParserPolicy", "LEGACY")
 # Dropping unnecessary columns
@@ -427,7 +427,7 @@ df = df.withColumn('Vehicle Color',
 
 df = df.dropDuplicates()
 
-df1=spark.read.parquet("s3://nycgroup05datalake/smalltable",header=True)
+df1=spark.read.parquet("s3://nycgroup05datalake-2/smalltable",header=True)
 
 df2 = df.join(df1, df['violation code'] == df1['violation code'], how='inner')
 
@@ -443,7 +443,7 @@ df3.coalesce(20).write \
 	  .format("parquet") \
 	  .option("header", "true") \
 	  .mode("overwrite") \
-	  .save("s3://nycgroup05datawarehouse/warehousenyc")
+	  .save("s3://nycgroup05datawarehouse-2/warehousenyc")
 	  
 	  
 spark.stop()

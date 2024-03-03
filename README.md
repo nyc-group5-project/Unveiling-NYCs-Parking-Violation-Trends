@@ -48,12 +48,19 @@ Visualization: Utilize Athena Driver to establish a conection to the Tableau sof
                 Create informative visualizations in Tableau based on the analysis.
 
 # Repository Structure:
--.github/workflows/: This directory contains scripts for injestion, data processing and automation.
--Dashboard_NYC_parking_violations.jpeg: This file provides the dashboard for displaying the analysis.
--NYC_parking_violation_dashboard_2.png: This file provides the dashboard no. 2 for displaying the analysis.
--Nyc_Parkling_Violation_Project_Architecture.png: This file provides the architechture of the project.
--Project Documentation.docx: This file provides the documentation regarding the project.
--README.md: This file provides an overview of the project and details about key performance indicators.
+.github/workflows/: This directory contains scripts for injestion, data processing and automation.
+
+Dashboard: This file provides link to the final dashboard after the analysis.
+
+Dashboard_NYC_parking_violations.jpeg: This file provides the image of dashboard no. 1.
+
+NYC_parking_violation_dashboard_2.png: This file provides the image of dashboard no. 2.
+
+Nyc_Parkling_Violation_Project_Architecture.png: This file provides the architechture of the project.
+
+Project Documentation.docx: This file provides the documentation regarding the project.
+
+README.md: This file provides an overview of the project and details about key performance indicators.
 # Contributors:
 - Akash Chandrashekharan
 - Islauddin 
